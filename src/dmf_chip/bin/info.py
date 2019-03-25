@@ -1,40 +1,30 @@
 # coding: utf-8
 from __future__ import absolute_import, print_function
-import hashlib
 import itertools as it
-import json
 
 from click import echo, style as st_
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
-from svg_model.connections import extract_connections
 import click
-import json_tricks
 import networkx as nx
 
-from ..core import _resolve_source, chip_info, ELECTRODES_XPATH
+from ..load import load
 
 
 @click.command()
-@click.argument('chip_file')  #, help='Digital microfluidics chip file (`*.svg`).')
+@click.argument('chip_file')
 @click.option('--output', default='-', type=click.File('w'))
 def info(chip_file, output):
     '''Display information about digital microfluidics chip design.'''
-    chip_info_ = chip_info(chip_file)
+    chip_info = load(chip_file)
 
-    with open(chip_file, 'rb') as input_:
-        hash_ = hashlib.sha256(input_.read())
-
-    # json_tricks.dump(chip_info_, output, indent=4)
+    channels_used = set(c for e in chip_info['electrodes']
+                        if 'channels' in e for c in e['channels'])
 
     summary = (('File', click.format_filename(chip_file)),
-               ('SHA256', hash_.hexdigest()),
+               ('SHA256', chip_info['__metadata__']['sha256']),
                ('Number of electrodes',
-                str(chip_info_['electrode_channels'].index
-                    .drop_duplicates().shape[0])),
-               ('Number of channels',
-                str(chip_info_['channel_electrodes'].index
-                    .drop_duplicates().shape[0])))
+                str(len(chip_info['electrodes']))),
+               ('Number of channels used',
+                str(len(channels_used))))
 
     label_format = '%%-%ds' % (max(map(len, zip(*summary)[0])) + 2)
 
@@ -43,22 +33,9 @@ def info(chip_file, output):
              nl=False)
         echo(st_(value, fg='white'), file=output, nl=True)
 
-    df_shapes = _resolve_source(chip_file, xpath=ELECTRODES_XPATH)
-    electrode_polygons = {id_: Polygon(df_i[['x', 'y']].values)
-                          for id_, df_i in df_shapes.groupby('id')}
-
-    def find_shape(x, y):
-        point = Point(x, y)
-        for id_, polygon_i in electrode_polygons.items():
-            if polygon_i.contains(point):
-                return id_
-        else:
-            return None
-
-    df_connections = extract_connections(chip_file, find_shape)
-
-    g = nx.Graph(df_connections[['source', 'target']])
-    g.add_nodes_from(df_shapes.id.values)
+    g = nx.Graph([(c['source']['id'], c['target']['id'])
+                  for c in chip_info['connections']])
+    g.add_nodes_from(e['id'] for e in chip_info['electrodes'])
     subgraphs = list(nx.connected_component_subgraphs(g))
 
     def window(seq, n):

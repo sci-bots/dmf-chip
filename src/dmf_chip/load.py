@@ -6,11 +6,9 @@ import logging
 import lxml
 import re
 
-from matplotlib.patches import Polygon as Polygon_
 from shapely.algorithms.polylabel import polylabel
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import semantic_version as sv
@@ -201,6 +199,9 @@ def draw(chip_info, ax=None, labels=True, groupby='id', unit='pixel'):
           `matplotlib` electrode `Patch`.  May be used, e.g., to set color and
           alpha (`pandas.Series`).
     '''
+    from matplotlib.patches import Polygon as Polygon_
+    import matplotlib.pyplot as plt
+
     if unit != 'pixel':
         chip_info = to_unit(chip_info, unit)
     df_paths = pd.concat([pd.DataFrame(p['points'], columns=list('xy'))
