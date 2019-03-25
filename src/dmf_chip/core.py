@@ -1,13 +1,8 @@
 # coding: utf-8
 from __future__ import absolute_import, unicode_literals, print_function
-from collections import OrderedDict
 import itertools as it
 import warnings
 
-import matplotlib as mpl
-import matplotlib.collections
-import matplotlib.patches
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pint
@@ -17,9 +12,8 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-__all__ = ['chip_info', 'draw', 'draw_w_segments', 'get_all_intersections',
-           'get_channel_neighbours', 'get_intersections', 'get_segments',
-           '__version__', 'ureg']
+__all__ = ['chip_info', 'get_all_intersections', 'get_channel_neighbours',
+           'get_intersections', 'get_segments', '__version__', 'ureg']
 
 ureg = pint.UnitRegistry()
 
@@ -42,7 +36,29 @@ def _extract_electrode_channels(df_shapes):
         return electrode_channels
 
 
-def get_segments(svg_source, distance_threshold=DEFAULT_DISTANCE_THRESHOLD):
+def _resolve_source(svg_source, **kwargs):
+    '''
+    Parameters
+    ----------
+    svg_source : str or file-like or pandas.DataFrame
+        File path, URI, or file-like object for SVG device file.
+
+        If specified as ``pandas.DataFrame``, assume argument is in format
+        returned by :func:`svg_model.svg_shapes_to_df`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        See return type of :func:`svg_model.svg_shapes_to_df()`.
+    '''
+    if not isinstance(svg_source, pd.DataFrame):
+        return svg_model.svg_shapes_to_df(svg_source, **kwargs)
+    else:
+        return svg_source
+
+
+def get_segments(svg_source, distance_threshold=DEFAULT_DISTANCE_THRESHOLD,
+                 **kwargs):
     '''
     Parameters
     ----------
@@ -54,11 +70,7 @@ def get_segments(svg_source, distance_threshold=DEFAULT_DISTANCE_THRESHOLD):
     distance_threshold : pint.quantity.Quantity
         Maximum gap between electrodes to still be considered neighbours.
     '''
-    if not isinstance(svg_source, pd.DataFrame):
-        df_shapes = svg_model.svg_shapes_to_df(svg_source,
-                                               xpath=ELECTRODES_XPATH)
-    else:
-        df_shapes = svg_source
+    df_shapes = _resolve_source(svg_source, **kwargs)
 
     # Calculate distance in pixels assuming 96 pixels per inch (PPI).
     distance_threshold_px = (distance_threshold * 96 *
@@ -147,144 +159,8 @@ def get_all_intersections(df_shapes,
     return df_result
 
 
-def draw(svg_source, ax=None, labels=True):
-    '''
-    Draw the specified device, along with rays casted normal to the electrode
-    line segments that intersect with a line segment of a neighbouring
-    electrode.
-
-
-    Parameters
-    ----------
-    svg_source : str or file-like or pandas.DataFrame
-        File path, URI, or file-like object for SVG device file.
-
-        If specified as ``pandas.DataFrame``, assume argument is in format
-        returned by :func:`svg_model.svg_shapes_to_df`.
-    ax : matplotlib.axes._subplots.AxesSubplot, optional
-        Axis to draw on.
-
-        .. versionadded:: 1.69.0
-    labels : bool, optional
-        Draw channel labels (default: ``True``).
-
-        .. versionadded:: 1.69.0
-
-    Returns
-    -------
-    `dict`
-        Result `dict` includes::
-        - ``axis``: axis to which the device was drawn
-          (`matplotlib.axes._subplots.AxesSubplot`)
-        - ``df_shapes``: table of electrode shape vertices (`pandas.DataFrame`)
-        - ``electrode_channels``: mapping from channel number to electrode ID
-          (`pandas.Series`).
-        - ``channel_patches``: mapping from channel number to corresponding
-          `matplotlib` electrode `Patch`.  May be used, e.g., to set color and
-          alpha (`pandas.Series`).
-    '''
-    if not isinstance(svg_source, pd.DataFrame):
-        df_shapes = svg_model.svg_shapes_to_df(svg_source,
-                                               xpath=ELECTRODES_XPATH)
-    else:
-        df_shapes = svg_source
-    electrode_channels = _extract_electrode_channels(df_shapes)
-
-    # Compute center `(x, y)` for each electrode.
-    electrode_centers = df_shapes.groupby('id')[['x', 'y']].mean()
-    # Index by **channel number** instead of **electrode id**.
-    electrode_centers.index = electrode_channels.reindex(electrode_centers
-                                                         .index)
-
-    patches = OrderedDict(sorted([(id_, mpl.patches
-                                   .Polygon(df_shape_i[['x', 'y']].values,
-                                            closed=False, label=id_))
-                                  for id_, df_shape_i in
-                                  df_shapes.groupby('id')]))
-    channel_patches = pd.Series(patches.values(), index=electrode_channels
-                                .reindex(patches.keys()))
-
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.set_aspect(True)
-
-    # For colors, see: https://gist.github.com/cfobel/fd939073cf13a309d7a9
-    for patch_i in patches.values():
-        # Light blue
-        patch_i.set_facecolor('#88bde6')
-        # Medium grey
-        patch_i.set_edgecolor('#4d4d4d')
-        ax.add_patch(patch_i)
-
-    ax.set_xlim(df_shapes.x.min(), df_shapes.x.max())
-    ax.set_ylim(df_shapes.y.max(), df_shapes.y.min())
-
-    if labels:
-        for channel_i, center_i in electrode_centers.iterrows():
-            ax.text(center_i.x, center_i.y, str(channel_i),
-                    horizontalalignment='center', verticalalignment='center',
-                    color='white', fontsize=10, bbox={'facecolor': 'black',
-                                                      'alpha': 0.2, 'pad': 5})
-
-    return {'axis': ax, 'electrode_channels': electrode_channels,
-            'df_shapes': df_shapes, 'channel_patches': channel_patches}
-
-
-def draw_w_segments(svg_source, ax=None,
-                    distance_threshold=DEFAULT_DISTANCE_THRESHOLD):
-    '''
-    Draw the specified device, along with rays casted normal to the electrode
-    line segments that intersect with a line segment of a neighbouring
-    electrode.
-
-
-    Parameters
-    ----------
-    svg_source : str or file-like or pandas.DataFrame
-        File path, URI, or file-like object for SVG device file.
-
-        If specified as ``pandas.DataFrame``, assume argument is in format
-        returned by :func:`svg_model.svg_shapes_to_df`.
-    ax : matplotlib.axes._subplots.AxesSubplot, optional
-        Axis to draw on.
-    distance_threshold : pint.quantity.Quantity, optional
-        Maximum gap between electrodes to still be considered neighbours
-        (default: ``%(distance_threshold)s``).
-
-    Returns
-    -------
-    `dict`
-        Return value from `draw()` with the following additional key::
-        - ``df_intersections``: Indexed by `id, vertex_i, id_neighbour,
-          vertex_i_neighbour`, where `id` is the corresponding electrode
-          identifier (e.g., `electrode000`), `vertex_i` is the starting vertex
-          of the line segment, `id_neighbour` is the identifier of the
-          neighbouring electrode, and `vertex_i` is the starting vertex of the
-          line segment of the neighbouring electrode (`pandas.DataFrame`).
-    ''' % {'distance_threshold': DEFAULT_DISTANCE_THRESHOLD}
-    result = draw(svg_source, ax=ax)
-    df_shapes = result['df_shapes']
-    ax = result['axis']
-
-    df_intersections = \
-        get_all_intersections(df_shapes, distance_threshold=distance_threshold)
-    df_segments = get_segments(df_shapes,
-                               distance_threshold=distance_threshold)
-
-    for idx_i, segment_i in (df_intersections.reset_index([2, 3])
-                             .join(df_segments, lsuffix='_neighbour')
-                             .iterrows()):
-        p = segment_i[['x_mid', 'y_mid']].values
-        r = segment_i[['x_normal', 'y_normal']].values
-        ax.plot(*zip(p, p + r), color='white')
-
-    result['df_intersections'] = df_intersections
-
-    return result
-
-
-def _get_electrode_neighbours(svg_source,
-                              distance_threshold=DEFAULT_DISTANCE_THRESHOLD):
+def _get_neighbours(svg_source, distance_threshold=DEFAULT_DISTANCE_THRESHOLD,
+                    **kwargs):
     '''
     Parameters
     ----------
@@ -300,11 +176,7 @@ def _get_electrode_neighbours(svg_source,
     -------
     pandas.DataFrame
     '''
-    if not isinstance(svg_source, pd.DataFrame):
-        df_shapes = svg_model.svg_shapes_to_df(svg_source,
-                                               xpath=ELECTRODES_XPATH)
-    else:
-        df_shapes = svg_source
+    df_shapes = _resolve_source(svg_source, **kwargs)
     df_segments = get_segments(df_shapes,
                                distance_threshold=distance_threshold)
     df_intersections = \
@@ -334,18 +206,32 @@ def _get_electrode_neighbours(svg_source,
                               inplace=True, ascending=False)
     # If multiple neighbours match a direction, only keep the first match.
     df_neighbours.drop_duplicates(['id', 'direction'], inplace=True)
-
-    electrode_channels = _extract_electrode_channels(df_shapes)
-    df_neighbours.insert(0, 'channel',
-                         electrode_channels.reindex(df_neighbours['id']).values)
-    df_neighbours.insert(0, 'channel_neighbour',
-                         electrode_channels
-                         .reindex(df_neighbours['id_neighbour']).values)
     return df_neighbours
 
 
+def get_id_neighbours(svg_source,
+                      distance_threshold=DEFAULT_DISTANCE_THRESHOLD, **kwargs):
+    # Make local copy with new index.
+    df_neighbours = _get_neighbours(svg_source,
+                                    distance_threshold=distance_threshold,
+                                    **kwargs)
+    ids = df_neighbours['id'].sort_values().drop_duplicates().values
+    df = df_neighbours.set_index(['id', 'direction'])
+    df.sort_index(inplace=True)
+
+    directions = ['up', 'down', 'left', 'right']
+    id_neighbours = (df.loc[[i for c in ids
+                            for i in zip(it.cycle([c]), directions)],
+                            'id_neighbour'])
+    # XXX Work around Pandas regression where index names do not persist to
+    # data frame view.
+    id_neighbours.index.names = df.index.names
+    id_neighbours
+
+
 def get_channel_neighbours(svg_source,
-                           distance_threshold=DEFAULT_DISTANCE_THRESHOLD):
+                           distance_threshold=DEFAULT_DISTANCE_THRESHOLD,
+                           **kwargs):
     '''
     Parameters
     ----------
@@ -361,9 +247,19 @@ def get_channel_neighbours(svg_source,
     -------
     pandas.Series
     '''
+    df_shapes = _resolve_source(svg_source, **kwargs)
+
     # Make local copy with new index.
-    df_neighbours = _get_electrode_neighbours(svg_source, distance_threshold)
-    df_neighbours = df_neighbours.set_index(['channel', 'direction'])
+    df_neighbours = _get_neighbours(df_shapes,
+                                    distance_threshold=distance_threshold)
+
+    electrode_channels = _extract_electrode_channels(df_shapes)
+    df_neighbours.insert(0, 'channel',
+                         electrode_channels.reindex(df_neighbours['id']).values)
+    df_neighbours.insert(0, 'channel_neighbour',
+                         electrode_channels
+                         .reindex(df_neighbours['id_neighbour']).values)
+    df_neighbours.set_index(['channel', 'direction'], inplace=True)
     df_neighbours.sort_index(inplace=True)
 
     directions = ['up', 'down', 'left', 'right']
@@ -378,7 +274,7 @@ def get_channel_neighbours(svg_source,
     return channel_neighbours
 
 
-def chip_info(svg_source):
+def chip_info(svg_source, **kwargs):
     '''
     Parameters
     ----------
@@ -399,15 +295,8 @@ def chip_info(svg_source):
           (`pandas.Series`).
         - ``channel_electrodes``: mapping from electrode ID to channel number
           (`pandas.Series`).
-
-
-    .. versionadded:: 1.65
     '''
-    if not isinstance(svg_source, pd.DataFrame):
-        df_shapes = svg_model.svg_shapes_to_df(svg_source,
-                                               xpath=ELECTRODES_XPATH)
-    else:
-        df_shapes = svg_source
+    df_shapes = _resolve_source(svg_source, **kwargs)
 
     electrode_shapes = svg_model.data_frame.get_shape_infos(df_shapes, 'id')
     electrode_channels = _extract_electrode_channels(df_shapes)
@@ -417,3 +306,87 @@ def chip_info(svg_source):
     return {'electrode_shapes': electrode_shapes,
             'electrode_channels': electrode_channels,
             'channel_electrodes': channel_electrodes}
+
+
+def _neighbours(df_electrode_shapes, df_connections):
+    '''
+    Parameters
+    ----------
+    df_electrode_neighbours : pandas.DataFrame
+        Data frame indexed by electrode SVG shape "id", containing (at least)
+        the following columns::
+
+         - ``x``, ``y``: top-left coordinates of SVG shape (note that
+           ``y``-axis is reversed in SVG, with 0 indicating top of image).
+         - ``width``, ``height``: width and height of shape bounding box
+    df_electrode_neighbours : pandas.DataFrame
+        Each row corresponds to connection between two electrode SVG shapes
+        denoted with respective column names, ``source`` and ``target``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Table indexed by electrode identifier (e.g., ``electrode001``) with
+        columns, each indicating the identifier of the neighbouring electrode
+        in the respective direction (``NaN`` if no neighbour in corresponding
+        direction):
+        - up
+        - down
+        - left
+        - right
+
+    Example
+    -------
+
+                                up          down          left         right
+        id
+        electrode000  electrode001           NaN  electrode043  electrode002
+        electrode001  electrode088  electrode000  electrode043  electrode006
+        electrode002  electrode006  electrode037  electrode000  electrode005
+        electrode003  electrode063  electrode042           NaN           NaN
+        electrode004  electrode066  electrode009  electrode068  electrode009
+        ...
+
+    '''
+
+    df_centers = (df_electrode_shapes[['x', 'y']] +
+                  .5 * df_electrode_shapes[['width', 'height']].values)
+    df_by_source = df_connections.set_index('source')
+    df_by_target = (df_connections.set_index('target')
+                    .rename(columns={'source': 'target'}))
+    df_neighbours = df_by_source.append(df_by_target)
+    df_neighbours.index.name = 'source'
+
+    # Add **source** x/y center coordinates
+    df_neighbours = df_neighbours.join(df_centers.loc[df_neighbours.index
+                                                      .drop_duplicates()])
+
+    # Add **target** x/y center coordinates
+    df_target_centers = df_centers.loc[df_neighbours.target]
+    df_neighbours['target_x'] = df_target_centers.x.values
+    df_neighbours['target_y'] = df_target_centers.y.values
+
+    df_neighbours['x_delta'] = df_neighbours.target_x - df_neighbours.x
+    df_neighbours['y_delta'] = df_neighbours.target_y - df_neighbours.y
+
+    # Index by target electrode identifier.
+    df_neighbours.reset_index(inplace=True)
+    df_neighbours.set_index('target', inplace=True)
+
+    # Find neighbour in each direction.
+    up = df_neighbours.loc[df_neighbours.y_delta <
+                           0].groupby('source')['y_delta'].idxmin()
+    down = df_neighbours.loc[df_neighbours.y_delta >
+                             0].groupby('source')['y_delta'].idxmax()
+    left = df_neighbours.loc[df_neighbours.x_delta <
+                             0].groupby('source')['x_delta'].idxmin()
+    right = df_neighbours.loc[df_neighbours.x_delta >
+                              0].groupby('source')['x_delta'].idxmax()
+
+    df_electrode_neighbours = pd.DataFrame(None,
+                                           index=df_electrode_shapes.index)
+    df_electrode_neighbours['up'] = up
+    df_electrode_neighbours['down'] = down
+    df_electrode_neighbours['left'] = left
+    df_electrode_neighbours['right'] = right
+    return df_electrode_neighbours
