@@ -203,7 +203,7 @@ def write_connections_layer(chip_file,
 
     for a, b, in graph.edges:
         a_point, b_point = centers[[a, b]]
-        path_d = 'M%.2f,%.2f L%.2f,%.2f' % (a_point['x'], a_point['y'],
+        path_d = 'M %.2f,%.2f L %.2f,%.2f' % (a_point['x'], a_point['y'],
                                             b_point['x'], b_point['y'])
         path_elem = Element(QName(nsmap['svg'], 'path'),
                             attrib={'id': layer_id,
