@@ -16,8 +16,9 @@ import semantic_version as sv
 from .core import ureg
 from .svg import shape_points
 
-
 __all__ = ['draw', 'load', 'to_unit']
+
+logger = logging.getLogger(__name__)
 
 
 def load(chip_file):
@@ -46,16 +47,16 @@ def load(chip_file):
         semantic_version = sv.Version(re.split('\s+', inkscape_version)[0],
                                       partial=True)
         if semantic_version >= sv.Version('0.92.0'):
-            logging.info('Detected Inkscape 0.92+; using 96 pixels per inch')
+            logger.info('Detected Inkscape 0.92+; using 96 pixels per inch')
             info['__metadata__']['ppi'] = 96
         else:
-            logging.info('Detected Inkscape <0.92; using 90 pixels per inch')
+            logger.info('Detected Inkscape <0.92; using 90 pixels per inch')
             info['__metadata__']['ppi'] = 90
     except Exception:
-        logging.exception('')
+        logger.exception('')
 
     if 'ppi' not in info['__metadata__']:
-        logging.info('Using 96 pixels per inch')
+        logger.info('Using 96 pixels per inch')
         info['__metadata__']['ppi'] = 96
 
     if all(k in root.attrib for k in ('width', 'height')):
@@ -103,7 +104,7 @@ def load(chip_file):
                                                     'y': pole_i.y}
             electrode_polygons[electrode_i['id']] = polygon_i
         except:
-            logging.exception('Error: `%s`' % electrode_i)
+            logger.exception('Error: `%s`' % electrode_i)
 
     def find_shape(x, y):
         point = Point(x, y)

@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import absolute_import, print_function
 import itertools as it
+import logging
 
 from click import echo, style as st_
 import click
@@ -8,10 +9,9 @@ import networkx as nx
 
 from ..load import load
 
+logger = logging.getLogger(__name__)
 
-@click.command()
-@click.argument('chip_file')
-@click.option('--output', default='-', type=click.File('w'))
+
 def info(chip_file, output):
     '''Display information about digital microfluidics chip design.'''
     chip_info = load(chip_file)
@@ -21,17 +21,16 @@ def info(chip_file, output):
 
     summary = (('File', click.format_filename(chip_file)),
                ('SHA256', chip_info['__metadata__']['sha256']),
-               ('Number of electrodes',
-                str(len(chip_info['electrodes']))),
-               ('Number of channels used',
-                str(len(channels_used))))
+               ('Pixels per inch', chip_info['__metadata__']['ppi']),
+               ('Number of electrodes', len(chip_info['electrodes'])),
+               ('Number of channels used', len(channels_used)))
 
     label_format = '%%-%ds' % (max(map(len, zip(*summary)[0])) + 2)
 
     for label, value in summary:
         echo(st_(label_format % (label + ':'), fg='magenta'), file=output,
              nl=False)
-        echo(st_(value, fg='white'), file=output, nl=True)
+        echo(st_(str(value), fg='white'), file=output, nl=True)
 
     g = nx.Graph([(c['source']['id'], c['target']['id'])
                   for c in chip_info['connections']])
@@ -75,7 +74,3 @@ def info(chip_file, output):
     else:
         echo(st_('At least one path exists between all electrodes.',
                  fg='blue'))
-
-
-if __name__ == '__main__':
-    info()

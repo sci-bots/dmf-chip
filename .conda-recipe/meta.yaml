@@ -16,12 +16,28 @@ build:
   noarch: python
   script: python setup.py install --single-version-externally-managed --record record.txt
 
-#requirements:
-  #build:
-    #- python 2.7*
+requirements:
+  build:
+    - click
+    - click-log
+    - lxml
+    - networkx
+    - pandas
+    - pint
+    - semantic_version
+    - shapely
+    - six
 
-  #run:
-    #- python 2.7*
+  run:
+    - click
+    - click-log
+    - lxml
+    - networkx
+    - pandas
+    - pint
+    - semantic_version
+    - shapely
+    - six
 
 test:
   imports:
