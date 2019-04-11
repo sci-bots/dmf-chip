@@ -1,7 +1,9 @@
+from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import sha256
 import functools as ft
+import json
 import logging
 import lxml
 import re
@@ -16,7 +18,7 @@ import semantic_version as sv
 from .core import ureg
 from .svg import shape_points
 
-__all__ = ['draw', 'load', 'to_unit']
+__all__ = ['draw', 'load', 'to_unit', 'as_obj']
 
 logger = logging.getLogger(__name__)
 
@@ -274,3 +276,29 @@ def to_unit(chip_info, unit_name):
                                  ppi).to(unit).magnitude
     output['__metadata__']['unit'] = unit_name
     return output
+
+
+def as_obj(chip_info):
+    '''Convert nested chip info dictionary into nested object with attributes.
+
+    This is helpful, for example, to enable tab-completion in an interactive
+    shell or Jupyter notebook session.
+
+    Parameters
+    ----------
+    chip_info : dict
+        Nested dictionary containing chip information.
+
+        See return type of :func:`load()`.
+
+    Returns
+    -------
+    argparse.Namespace
+        Nested namespace object equivalent to specified nested chip info
+        `dict`.
+
+
+    .. versionadded:: 0.2.0
+    '''
+    return json.loads(json.dumps(chip_info),
+                      object_hook=lambda d: Namespace(**d))
