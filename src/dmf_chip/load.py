@@ -33,6 +33,11 @@ def load(chip_file):
     Returns
     -------
     dict
+
+
+    .. versionchanged:: 0.3.0
+        Read design ID and test routes from ``<dmf:ChipDesign>`` tag.
+        See https://github.com/sci-bots/dmf-chip/issues/1 for more information.
     '''
     info = {'__metadata__': {}}
 
@@ -42,7 +47,7 @@ def load(chip_file):
     root = lxml.etree.parse(chip_file).getroot()
     NSMAP = {k: v for k, v in root.nsmap.items() if k}
     # Short-hand to xpath using namespaces referenced in file.
-    _xpath = ft.partial(root.xpath, namespaces=NSMAP)
+    _xpath = ft.wraps(root.xpath)(ft.partial(root.xpath, namespaces=NSMAP))
 
     try:
         inkscape_version = _xpath('/svg:svg/@inkscape:version')[0]
@@ -69,6 +74,23 @@ def load(chip_file):
             if isinstance(v, ureg.Quantity):
                 shape[k] = (v * ppi).to('pixel').magnitude
         info['__metadata__'].update(shape)
+
+    # Read design-id from `<dmf:ChipDesign><dmf:DesignID>` tag.
+    ids = _xpath('//dmf:ChipDesign/dmf:DesignId')
+    if ids:
+        info['__metadata__']['design-id'] = ids[0].text
+
+    # Read test routes.
+    test_route_elements = \
+        _xpath('//dmf:ChipDesign/dmf:TestRoutes/dmf:TestRoute[@id!=""]')
+    test_routes = []
+    for route in test_route_elements:
+        xpath_ = ft.wraps(route.xpath)(ft.partial(route.xpath,
+                                                  namespaces=NSMAP))
+        route_ = dict(route.attrib.items())
+        route_['waypoints'] = [w.text for w in xpath_('dmf:Waypoint')]
+        test_routes.append(route_)
+    info['__metadata__']['test-routes'] = test_routes
 
     # Extract electrode information.
     device_layer = _xpath('//svg:g[@inkscape:label="Device"]')[0]
