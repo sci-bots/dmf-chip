@@ -20,6 +20,7 @@ requirements:
   build:
     - click
     - click-log
+    - funcsigs
     - lxml
     - networkx
     - pandas
@@ -31,6 +32,7 @@ requirements:
   run:
     - click
     - click-log
+    - funcsigs
     - lxml
     - networkx
     - pandas
