@@ -402,22 +402,3 @@ class KOpt(TSP):
                 return False
 
         return False
-
-
-def test():
-    from tsp_local.test import matrix
-    import logging
-
-    TSP.setEdges(matrix)
-
-    Log.setLevel(logging.INFO)
-
-    t = KOpt(range(len(matrix)))
-    t._optimise()
-
-    return t.heuristic_path, t.heuristic_cost
-
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
