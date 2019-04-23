@@ -257,8 +257,7 @@ def _get_or_create(parent, name, attrib=None):
     _xpath = ft.wraps(parent.xpath)(ft.partial(parent.xpath, namespaces=nsmap))
     xquery = './%s:%s' % (ns, tagname)
     if attrib is not None:
-        attrib_str = '[%s]' % (','.join('@%s="%s"' % (k, v)
-                                        for k, v in attrib.items()))
+        attrib_str = ''.join('[@%s="%s"]' % (k, v) for k, v in attrib.items())
     else:
         attrib_str = ''
     xquery += attrib_str
