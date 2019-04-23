@@ -203,9 +203,13 @@ dmf_chip.add_command(neighbour)
 dmf_chip.add_command(route)
 
 
-if __name__ == '__main__':
+def main():
     for logger_name in (None, 'dmf_chip', 'TSP'):
         logger_ = logging.getLogger(logger_name)
         click_log.basic_config(logger_)
-    config = click_log.basic_config(logger)
+    click_log.basic_config(logger)
     dmf_chip()
+
+
+if __name__ == '__main__':
+    main()
