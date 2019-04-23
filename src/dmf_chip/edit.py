@@ -1,6 +1,7 @@
 import functools as ft
 import warnings
 
+from logging_helpers import _L
 from lxml.etree import QName, Element
 import lxml.etree
 import networkx as nx
@@ -213,4 +214,106 @@ def write_connections_layer(chip_file,
 
     connections_layer.extend(path_elements)
     device_layer.addnext(connections_layer)
+    return doc
+
+
+def _get_or_create(parent, name, attrib=None):
+    '''Get element specified by qualified tag name or create it.
+
+    Parameters
+    ----------
+    parent : lxml.etree element
+        Parent element.
+    name : str
+        Name in form ``"<namespace alias>:<tagname>"``, e.g.,
+        ``"dmf:ChipDesign"``.  If :data:`parent` does not contain a child
+        matching the specified tag name and corresponding attributes, create a
+        new element.
+    attrib : dict, optional
+        Element attributes to match (or set, if creating new element).
+
+    Returns
+    -------
+    lxml.etree.Element
+        Matching child element (if available) or created element.
+
+    Examples
+    --------
+
+    Get ``<dmf:ChipDesign>`` element or create it if it does not exist:
+
+    >>>> from dmf_chip.edit import _get_or_create
+    >>>>
+    >>>> # Load xml document define `_xpath` alias...
+    >>>>
+    >>>> metadata = _xpath('/svg:svg/svg:metadata')[0]
+    >>>> chip_design = _get_or_create(metadata, 'dmf:ChipDesign')
+    '''
+    docroot = parent.getroottree().getroot()
+    nsmap = {k: v for k, v in docroot.nsmap.items() if k}
+    ns, tagname = name.split(':')
+    qname = QName(nsmap[ns], tagname)
+    # Short-hand to xpath using namespaces referenced in file.
+    _xpath = ft.wraps(parent.xpath)(ft.partial(parent.xpath, namespaces=nsmap))
+    xquery = './%s:%s' % (ns, tagname)
+    if attrib is not None:
+        attrib_str = '[%s]' % (','.join('@%s="%s"' % (k, v)
+                                        for k, v in attrib.items()))
+    else:
+        attrib_str = ''
+    xquery += attrib_str
+
+    if not _xpath(xquery):
+        element = Element(qname, attrib=attrib)
+        parent.append(element)
+        _L().info('Add new element: `%s:%s%s`', ns, tagname, attrib_str)
+    else:
+        element = _xpath(xquery)[0]
+        _L().info('found element: `%s:%s%s`', ns, tagname, attrib_str)
+    return element
+
+
+def write_test_route(chip_file, tour_ids, id_):
+    '''Write test route to SVG metadata.
+
+    Parameters
+    ----------
+    chip_file : str
+        Path to chip design file.
+    tour_ids : list[str]
+        Ordered list of electrode ids defining tour waypoints.
+    id_ : str
+        Test route id.
+
+    Returns
+    -------
+    lxml.etree document
+        In-memory document with test route element added.
+    '''
+    doc = lxml.etree.parse(chip_file)
+    root = doc.getroot()
+
+    if 'dmf' not in root.nsmap:
+        root.nsmap['dmf'] = \
+            "https://github.com/sci-bots/dmf-chip-spec/releases/tag/v0.1"
+
+    NSMAP = {k: v for k, v in root.nsmap.items() if k}
+    # Short-hand to xpath using namespaces referenced in file.
+    _xpath = ft.wraps(root.xpath)(ft.partial(root.xpath, namespaces=NSMAP))
+
+    metadata = _xpath('/svg:svg/svg:metadata')[0]
+
+    chip_design = _get_or_create(metadata, 'dmf:ChipDesign')
+    test_routes = _get_or_create(chip_design, 'dmf:TestRoutes')
+
+    if test_routes.xpath('./dmf:TestRoute[@id="%s"]' % id_, namespaces=NSMAP):
+        raise NameError('Test route already exists with id: `%s`', id_)
+
+    test_route = _get_or_create(test_routes, 'dmf:TestRoute',
+                                attrib={'id': id_})
+    for id_i in tour_ids:
+        element_i = Element(QName(NSMAP['dmf'], 'Waypoint'))
+        element_i.text = str(id_i)
+        test_route.append(element_i)
+    _L().info('Added %d waypoints.', len(tour_ids))
     return doc

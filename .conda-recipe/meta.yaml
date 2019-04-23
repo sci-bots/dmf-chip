@@ -21,6 +21,7 @@ requirements:
     - click
     - click-log
     - funcsigs
+    - logging-helpers
     - lxml
     - networkx
     - pandas
@@ -33,6 +34,7 @@ requirements:
     - click
     - click-log
     - funcsigs
+    - logging-helpers
     - lxml
     - networkx
     - pandas
