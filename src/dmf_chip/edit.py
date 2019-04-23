@@ -309,7 +309,7 @@ def write_test_route(chip_file, tour_ids, id_):
         raise NameError('Test route already exists with id: `%s`', id_)
 
     test_route = _get_or_create(test_routes, 'dmf:TestRoute',
-                                attrib={'id': id_})
+                                attrib={'id': id_, 'version': '0.1.0'})
     for id_i in tour_ids:
         element_i = Element(QName(NSMAP['dmf'], 'Waypoint'))
         element_i.text = str(id_i)
