@@ -14,6 +14,7 @@ from shapely.geometry.polygon import Polygon
 import numpy as np
 import pandas as pd
 import semantic_version as sv
+import six
 
 from .core import ureg
 from .svg import shape_points
@@ -41,8 +42,12 @@ def load(chip_file):
     '''
     info = {'__metadata__': {}}
 
-    with open(chip_file, 'rb') as input_:
-        info['__metadata__']['sha256'] = sha256(input_.read()).hexdigest()
+    if isinstance(chip_file, six.string_types):
+        with open(chip_file, 'rb') as input_:
+            info['__metadata__']['sha256'] = sha256(input_.read()).hexdigest()
+    else:
+        info['__metadata__']['sha256'] = sha256(chip_file.read()).hexdigest()
+        chip_file.seek(0)
 
     root = lxml.etree.parse(chip_file).getroot()
     NSMAP = {k: v for k, v in root.nsmap.items() if k}
