@@ -363,6 +363,9 @@ def get_neighbours(chip_info):
                      left         path304
                      right        path320
             Name: neighbour_id, Length: 222, dtype: object
+
+
+    .. versionadded:: 0.5.0
     '''
     df_connections = pd.DataFrame([[c['source']['id'], c['target']['id'],
                                     c['source']['x'], c['source']['y'],
