@@ -8,6 +8,8 @@ import click
 import networkx as nx
 
 from ..load import load
+from six.moves import map
+from six.moves import zip
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ def info(chip_file, output):
                ('Number of electrodes', len(chip_info['electrodes'])),
                ('Number of channels used', len(channels_used)))
 
-    label_format = '%%-%ds' % (max(map(len, zip(*summary)[0])) + 2)
+    label_format = '%%-%ds' % (max(map(len, list(zip(*summary))[0])) + 2)
 
     for label, value in summary:
         echo(st_(label_format % (label + ':'), fg='magenta'), file=output,
