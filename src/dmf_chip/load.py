@@ -21,7 +21,7 @@ from .core import ureg
 from .svg import shape_points
 from six.moves import map
 
-__all__ = ['draw', 'load', 'to_unit', 'as_obj']
+__all__ = ['draw', 'load', 'to_unit', 'as_obj', 'get_neighbours']
 
 logger = logging.getLogger(__name__)
 
@@ -331,3 +331,74 @@ def as_obj(chip_info):
     '''
     return json.loads(json.dumps(chip_info),
                       object_hook=lambda d: Namespace(**d))
+
+
+def get_neighbours(chip_info):
+    '''Find neighbours in four directions: down, left, right, up
+
+    Parameters
+    ----------
+    chip_info : dict
+        Nested dictionary containing chip information.
+
+        See return type of :func:`load()`.
+
+    Returns
+    -------
+    pandas.Series
+        Neighbour ids, indexed by ``(id, direction)``, e.g.:
+
+            id       direction
+            path172  down         path174
+                     left         path226
+                     right        path180
+                     up           path320
+            path174  down         path296
+                     left         path224
+                     right        path182
+                     up           path172
+            path176  down         path178
+                                   ...
+            path322  down         path226
+                     left         path304
+                     right        path320
+            Name: neighbour_id, Length: 222, dtype: object
+
+
+    .. versionadded:: 0.5.0
+    '''
+    df_connections = pd.DataFrame([[c['source']['id'], c['target']['id'],
+                                    c['source']['x'], c['source']['y'],
+                                    c['target']['x'], c['target']['y']]
+                                   for c in chip_info['connections']],
+                                  columns=['id1', 'id2', 'x1', 'y1',
+                                           'x2', 'y2'])
+    df_reversed = df_connections.rename(columns={k: k[:-1] +
+                                                 ('1' if k[-1] == '2' else '2')
+                                                 for k in
+                                                 df_connections.columns})
+    df_connections = pd.concat([df_connections,
+                                df_reversed]).set_index(['id1', 'id2'])
+    connection_angles = np.arctan2((df_connections.x2 - df_connections.x1),
+                                   (df_connections.y2 -
+                                    df_connections.y1)) / np.pi * 180
+    connection_angles[connection_angles < 0] += 360
+
+    tolerance = 45
+
+    df_neighbours =  (pd.concat([connection_angles[(connection_angles <
+                                                    (angle + .5 * tolerance)) &
+                                                   (connection_angles >
+                                                    (angle - .5 * tolerance))]
+                                 for angle in (90, 180, 270)] +
+                                [connection_angles[(connection_angles < .5 *
+                                                    tolerance) |
+                                                   (connection_angles >
+                                                    (360 - .5 * tolerance))]],
+                                keys=['right', 'up', 'left', 'down'],
+                                names=['direction']).reset_index()
+                      .set_index(['id1', 'direction']).drop(columns=[0])
+                      .sort_index())
+    df_neighbours.index.names = ['id', 'direction']
+    df_neighbours.rename(columns={'id2': 'neighbour_id'}, inplace=True)
+    return df_neighbours['neighbour_id']
