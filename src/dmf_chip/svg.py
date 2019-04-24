@@ -80,7 +80,7 @@ def get_transform(op):
     '''
     # Start with identity matrix (no transform).
     T = np.eye(3)
-    args = map(float, re.split(r'\s*[,\s]\s*', op['args']))
+    args = list(map(float, re.split(r'\s*[,\s]\s*', op['args'])))
 
     if op['operation'] == 'matrix':
         T[0] = args[:3]
