@@ -159,6 +159,10 @@ def shape_points(svg_element):
         List of coordinates of points found in SVG shape element.
 
         Each point is represented by a dictionary with keys ``x`` and ``y``.
+
+
+    .. versionchanged:: 0.4.0
+        Add support for Python 3.
     '''
     if svg_element.tag.endswith('/svg}path'):
         # Decode `svg:path` vertices from [`"d"`][1] attribute.
