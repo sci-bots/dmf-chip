@@ -1,12 +1,15 @@
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
+from six.moves import map
+import six
+from six.moves import range
 
 
-class TSP():
+class TSP(six.with_metaclass(ABCMeta)):
     """
     Class to hold a TSP, sub-class will implement different improvement
     heuristics.
     """
-    __metaclass__ = ABCMeta
 
     edges = {}  # Global cost matrix
     ratio = 10.  # Global ratio

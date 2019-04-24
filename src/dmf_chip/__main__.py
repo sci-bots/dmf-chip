@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def handle_stdin(ctx, param, value):
     if value == '-':
-        value = io.BytesIO(sys.stdin.read())
+        value = io.BytesIO(sys.stdin.read().encode('utf8'))
     return value
 
 
@@ -47,14 +47,10 @@ def dmf_chip():
     pass
 
 
-# @click.group(invoke_without_command=True, help='Display information about '
-             # 'digital microfluidics chip design.')
 @dmf_chip.command(help='Display information about digital microfluidics chip '
                   'design.')
-# @click.pass_context
 @click.argument('chip_file', callback=handle_stdin)
-@click.option('--output', default='-', type=click.File('w'))
-# def info(ctx, chip_file, output):
+@click.argument('output', default='-', type=click.File('w'))
 def info(chip_file, output):
     info_(chip_file, output)
 
@@ -69,7 +65,7 @@ def neighbour():
                    'corresponding to a cached connection between two '
                    'electrodes.')
 @click.argument('chip_file', callback=handle_stdin)
-@click.argument('output', default='-', type=click.File('w'))
+@click.argument('output', default='-', type=click.File('wb'))
 @click.option('--distance-threshold', help='Default: %s' %
               DEFAULT_DISTANCE_THRESHOLD)
 def detect(chip_file, output, distance_threshold):
@@ -92,7 +88,7 @@ def route():
                'electrode **at least** once and add test route to '
                '`<dmf:`ChipDesign><dmf:TestRoutes>`.')
 @click.argument('chip_file', callback=handle_stdin)
-@click.argument('output', default='-', type=click.File('w'))
+@click.argument('output', default='-', type=click.File('wb'))
 @click.option('--start-id', help='Start electrode id',
               callback=mutex('start_id', 'start_channel'))
 @click.option('--start-channel', help='Start channel number', type=int,
@@ -149,7 +145,7 @@ def route__list(chip_file):
 
 @route.command(help='Add a test route', name='add')
 @click.argument('chip_file', callback=handle_stdin)
-@click.argument('output', default='-', type=click.File('w'))
+@click.argument('output', default='-', type=click.File('wb'))
 @click.option('--id', required=True, help='Route id')
 @click.option('-w', '--waypoint', multiple=True, help='Channel number. '
               'Multiple channel numbers may be specified, e.g., `-w 10 -w 23 '
@@ -171,7 +167,7 @@ def route__add(chip_file, output, id, waypoint):
 
 @route.command(help='Remove routes', name='remove')
 @click.argument('chip_file', callback=handle_stdin)
-@click.argument('output', default='-', type=click.File('w'))
+@click.argument('output', default='-', type=click.File('wb'))
 @click.option('--id', required=True, multiple=True, help='id of route to '
               'remove. Multiple ids may be specified, e.g.,   `--id foo --id '
               'bar ...`')

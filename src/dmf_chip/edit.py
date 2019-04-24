@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import functools as ft
 import warnings
 
@@ -10,6 +11,7 @@ import pandas as pd
 
 from .core import ureg
 from .load import draw, load
+from six.moves import zip
 
 __all__ = ['detect_neighbours', 'draw_with_segment_rays',
            'write_connections_layer']
@@ -73,7 +75,7 @@ def get_all_intersections(df_rays):
     if not intersections:
         return pd.DataFrame()
 
-    index, values = zip(*intersections)
+    index, values = list(zip(*intersections))
     df_result = pd.concat(values, keys=index)
     df_result.index.names = ['id', 'vertex_i',
                              'id_neighbour', 'vertex_i_neighbour']

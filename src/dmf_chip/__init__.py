@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import dmf_chip.core
 import dmf_chip.load
 import dmf_chip.edit

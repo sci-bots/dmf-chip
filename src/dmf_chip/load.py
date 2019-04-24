@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
@@ -18,6 +19,7 @@ import six
 
 from .core import ureg
 from .svg import shape_points
+from six.moves import map
 
 __all__ = ['draw', 'load', 'to_unit', 'as_obj']
 
@@ -110,7 +112,7 @@ def load(chip_file):
                            '__sourceline__': p.sourceline}
         if 'data-channels' in p.attrib and p.attrib['data-channels']:
             electrode_info['channels'] = \
-                map(int, re.split(r'\s*,\s*', p.attrib['data-channels']))
+                list(map(int, re.split(r'\s*,\s*', p.attrib['data-channels'])))
         electrode_info.update(p.attrib)
         electrodes.append(electrode_info)
 
@@ -190,7 +192,7 @@ def load(chip_file):
     area_components = df.groupby(level='id')[['area_a', 'area_b']].sum()
     shape_areas = .5 * (area_components['area_b'] - area_components['area_a'])
 
-    for id_i, area_i in shape_areas.iteritems():
+    for id_i, area_i in six.iteritems(shape_areas):
         electrodes_by_id[id_i]['area'] = abs(area_i)
         electrodes_by_id[id_i]['direction'] = ('clockwise' if area_i >= 0
                                                else 'counter-clockwise')

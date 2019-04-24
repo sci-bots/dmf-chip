@@ -1,11 +1,14 @@
 '''
 Utility functions, etc. for working with SVG documents.
 '''
+from __future__ import absolute_import
 import logging
 import re
 
+from six.moves import map
 import numpy as np
 import six
+from functools import reduce
 
 __all__ = ['shape_points', 'get_CTM', 'get_current_transformation_matrix']
 
@@ -168,14 +171,14 @@ def shape_points(svg_element):
         # Decode `svg:polygon` vertices from [`"points"`][2] attribute.
         #
         # [2]: https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/points
-        points = [map(float, v.split(','))
+        points = [list(map(float, v.split(',')))
                   for i, v in enumerate(svg_element.attrib['points'].strip()
                                         .split(' '))]
     elif svg_element.tag.endswith('/svg}line'):
         # Decode `svg:polygon` vertices from [`"points"`][2] attribute.
         #
         # [2]: https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/points
-        points = [map(float, p)
+        points = [list(map(float, p))
                   for p in [[svg_element.attrib['x1'],
                              svg_element.attrib['y1']],
                             [svg_element.attrib['x2'],

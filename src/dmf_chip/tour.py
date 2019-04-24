@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import logging
 
 import networkx as nx
@@ -8,6 +9,7 @@ import six
 from .load import draw
 from .lib.tsp_local.base import TSP
 from .lib.tsp_local.kopt import KOpt
+from six.moves import range
 
 
 logger = logging.getLogger(__name__)
